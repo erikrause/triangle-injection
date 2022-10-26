@@ -187,6 +187,8 @@ rmdir /s /q $(OutDir)</Command>
     <ClInclude Include="hooking.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="hook_content\passthrough_vs.shader" />
+    <None Include="hook_content\vertex_color_ps.shader" />
     <None Include="res\d3d11_exports.def" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

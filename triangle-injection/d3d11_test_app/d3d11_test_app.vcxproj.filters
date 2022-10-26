@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="content">
+      <UniqueIdentifier>{3fb21efa-0090-4966-879c-b6466b0a5d28}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="common_header.h">
@@ -53,5 +56,19 @@
     <ClCompile Include="win_init.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="content\cube_vs.shader">
+      <Filter>content</Filter>
+    </None>
+    <None Include="content\position_only_projection_vs.shader">
+      <Filter>content</Filter>
+    </None>
+    <None Include="content\solid_color_ps.shader">
+      <Filter>content</Filter>
+    </None>
+    <None Include="content\vertex_color_ps.shader">
+      <Filter>content</Filter>
+    </None>
   </ItemGroup>
 </Project>

@@ -24,7 +24,7 @@
     <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>NotSet</CharacterSet>
   </PropertyGroup>
-   <PropertyGroup>
+  <PropertyGroup>
     <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
@@ -111,6 +111,12 @@ robocopy  $(SolutionDir)d3d11_test_app\content $(OutDir)content </Command>
     <ClCompile Include="simple_app.cpp" />
     <ClCompile Include="simple_view.cpp" />
     <ClCompile Include="win_init.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="content\cube_vs.shader" />
+    <None Include="content\position_only_projection_vs.shader" />
+    <None Include="content\solid_color_ps.shader" />
+    <None Include="content\vertex_color_ps.shader" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

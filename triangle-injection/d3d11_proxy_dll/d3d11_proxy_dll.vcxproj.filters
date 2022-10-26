@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="hook_content">
+      <UniqueIdentifier>{96b60fa4-0b6e-4add-b7cf-e11a9d487f0e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="hooking.cpp">
@@ -33,6 +36,12 @@
   <ItemGroup>
     <None Include="res\d3d11_exports.def">
       <Filter>Resource Files</Filter>
+    </None>
+    <None Include="hook_content\passthrough_vs.shader">
+      <Filter>hook_content</Filter>
+    </None>
+    <None Include="hook_content\vertex_color_ps.shader">
+      <Filter>hook_content</Filter>
     </None>
   </ItemGroup>
 </Project>
