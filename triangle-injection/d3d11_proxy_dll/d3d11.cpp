@@ -7,6 +7,7 @@
 #include <d3d11_4.h>
 #include <shlwapi.h>
 #include "hooking.h"
+#include <DirectXMath.h>
 
 #pragma comment (lib, "Shlwapi.lib") //for PathRemoveFileSpecA
 #pragma comment(lib, "d3dcompiler.lib")
@@ -40,6 +41,12 @@ ID3D11InputLayout* vertLayout = nullptr;
 ID3D11RasterizerState* SolidRasterState = nullptr;
 ID3D11DepthStencilState* SolidDepthStencilState = nullptr;
 
+struct VertexData
+{
+	DirectX::XMFLOAT3 Pos;
+	DirectX::XMFLOAT2 Tex;
+};
+
 HRESULT DXGISwapChain_Present_Hook(IDXGISwapChain* thisPtr, UINT SyncInterval, UINT Flags)
 {
 	devCon->VSSetShader(vs, 0, 0);
@@ -48,7 +55,7 @@ HRESULT DXGISwapChain_Present_Hook(IDXGISwapChain* thisPtr, UINT SyncInterval, U
 	devCon->RSSetState(SolidRasterState);
 	devCon->OMSetDepthStencilState(SolidDepthStencilState, 0);
 
-	UINT stride = sizeof(float) * 6;
+	UINT stride = sizeof(VertexData);
 	UINT offset = 0;
 	devCon->IASetVertexBuffers(0, 1, &vertex_buffer, &stride, &offset);
 	devCon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -118,17 +125,20 @@ void LoadShaders()
 
 void CreateMesh()
 {
-	const float vertData[] =
+	using namespace DirectX;
+
+	const VertexData vertData[] =
 	{
-		-1, -1, 0.1,	1,0,0,
-		1, 1, 0.1,	0,1,0,
-		-1, 1, 0.1,	0,0,1
+		VertexData { XMFLOAT3(-1, -1, 0.1), XMFLOAT2(1, 0) },
+		VertexData { XMFLOAT3( 1,  1, 0.1), XMFLOAT2(0, 1) },
+		VertexData { XMFLOAT3(-1,  1, 0.1), XMFLOAT2(0, 0) }
 	};
+
 
 	D3D11_BUFFER_DESC vertBufferDesc;
 	ZeroMemory(&vertBufferDesc, sizeof(vertBufferDesc));
 	vertBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-	vertBufferDesc.ByteWidth = sizeof(float) * 6 * 3; //6 floats per vert, 3 verts
+	vertBufferDesc.ByteWidth = sizeof(VertexData) * 3; // 3 verts
 	vertBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	vertBufferDesc.CPUAccessFlags = 0;
 	vertBufferDesc.MiscFlags = 0;
@@ -146,8 +156,8 @@ void CreateInputLayout()
 {
 	D3D11_INPUT_ELEMENT_DESC vertElements[] =
 	{
-		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,D3D11_INPUT_PER_VERTEX_DATA, 0},
-		{"COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}
+		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}
 	};
 
 	HRESULT err = device->CreateInputLayout(vertElements, _countof(vertElements), vs_blob->GetBufferPointer(), vs_blob->GetBufferSize(), &vertLayout);
