@@ -129,8 +129,8 @@ void CreateMesh()
 
 	const VertexData vertData[] =
 	{
-		VertexData { XMFLOAT3(-1, -1, 0.1), XMFLOAT2(1, 0) },
-		VertexData { XMFLOAT3( 1,  1, 0.1), XMFLOAT2(0, 1) },
+		VertexData { XMFLOAT3(-1, -1, 0.1), XMFLOAT2(0, 1) },
+		VertexData { XMFLOAT3( 1,  1, 0.1), XMFLOAT2(1, 0) },
 		VertexData { XMFLOAT3(-1,  1, 0.1), XMFLOAT2(0, 0) }
 	};
 
