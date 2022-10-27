@@ -25,3 +25,9 @@ In order for pixel shaders to sample swapchain's backbuffer, it was:
   - created render target with 2x size of backbuffer texture.
   
 Also added IDXGISwapChain::D3D11CreateDevice() passthrough function for Visual Studio GPU debugger.
+
+For digits drawing DirectXTK is used with generated fonts ([fonts generating tutorial](https://github.com/microsoft/DirectXTK/wiki/Drawing-text)).
+
+# Using
+
+Put the d3d11.dll and the "hook_content" folder (contains shaders and fonts) in the 3D application folder that contains executable program, and run this program. 
