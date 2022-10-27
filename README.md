@@ -15,4 +15,13 @@ The DLL requires that the target app uses D3D11CreateDeviceAndSwapChain to creat
 ![Screenshot of test app with triangle drawn over top](https://github.com/khalladay/triangle-injection/blob/main/test_app.png?raw=true)
 
 
+# Changes
 
+Implemented pixel shaders for [upsampling](https://github.com/erikrause/triangle-injection/blob/main/triangle-injection/d3d11_proxy_dll/hook_content/bilinearInterpolation_ps.shader) and [zooming](https://github.com/erikrause/triangle-injection/blob/main/triangle-injection/d3d11_proxy_dll/hook_content/topLeftQuadrant_ps.shader). There are used sampler for linear interpolation.
+
+In order for pixel shaders to sample swapchain's backbuffer, it was:
+  - placed fullscreen quad to texturing the viewport.
+  - added shader resorce view for backbuffer.
+  - created render target with 2x size of backbuffer texture.
+  
+Also added IDXGISwapChain::D3D11CreateDevice() passthrough function for Visual Studio GPU debugger.
