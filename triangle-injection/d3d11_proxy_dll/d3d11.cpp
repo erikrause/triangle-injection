@@ -10,8 +10,8 @@
 #include <DirectXMath.h>
 #include <SpriteBatch.h>
 #include <SpriteFont.h>
-
-
+#include <chrono>
+#include <string> 
 
 #pragma comment (lib, "Shlwapi.lib") //for PathRemoveFileSpecA
 #pragma comment(lib, "d3dcompiler.lib")
@@ -70,12 +70,36 @@ ID3D11SamplerState* g_samplerState = nullptr;
 DirectX::SpriteBatch* g_spriteBatch = nullptr;
 DirectX::SpriteFont* g_spriteFont = nullptr;
 
+auto lastTime = std::chrono::high_resolution_clock::now();
+int lastFps;
+double fpsTimePassed = 0.0;
+double fpsTimePassMax = 1.0;	// пропускать одну секунду перед обновлением счётчика кадров.
+
 
 struct VertexData
 {
 	DirectX::XMFLOAT3 Pos;
 	DirectX::XMFLOAT2 Tex;
 };
+
+int GetFrameTime()
+{
+	auto currentTime = std::chrono::high_resolution_clock::now();
+	auto elapsed = std::chrono::duration<double, std::milli>(currentTime - lastTime);
+
+	double dt = elapsed.count() * 0.001f;
+
+	lastTime = currentTime;
+	fpsTimePassed += dt;
+
+	if (fpsTimePassed > fpsTimePassMax)
+	{
+		fpsTimePassed = 0.0;
+		lastFps = 1 / dt;
+	}
+
+	return lastFps;
+}
 
 HRESULT DXGISwapChain_Present_Hook(IDXGISwapChain* thisPtr, UINT SyncInterval, UINT Flags)
 {
@@ -114,12 +138,13 @@ HRESULT DXGISwapChain_Present_Hook(IDXGISwapChain* thisPtr, UINT SyncInterval, U
 	devCon->DrawIndexed(6, 0, 0);
 
 
+	int fps = GetFrameTime();
 	ID3D11BlendState* blendState_Orig;
 	float blendFactor_Orig[4];
 	UINT sampleMask_Orig;
-	devCon->OMGetBlendState(&blendState_Orig, blendFactor_Orig, &sampleMask_Orig);
+	devCon->OMGetBlendState(&blendState_Orig, blendFactor_Orig, &sampleMask_Orig);	// We need to store blending, because DrawString overrides it.
 	g_spriteBatch->Begin();
-	g_spriteFont->DrawString(g_spriteBatch, "HELLO!", DirectX::XMFLOAT2(1, 1), DirectX::Colors::Red, 0.0f);
+	g_spriteFont->DrawString(g_spriteBatch, std::to_string(fps).c_str(), DirectX::XMFLOAT2(1, 1), DirectX::Colors::Red, 0.0f);
 	g_spriteBatch->End();
 	devCon->OMSetBlendState(blendState_Orig, blendFactor_Orig, sampleMask_Orig);
 
