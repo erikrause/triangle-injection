@@ -21,7 +21,7 @@ Implemented pixel shaders for [upsampling](https://github.com/erikrause/triangle
 
 In order for pixel shaders to sample swapchain's backbuffer, it was:
   - placed fullscreen quad to texturing the viewport.
-  - added shader resorce view for backbuffer
+  - added shader resorce view for backbuffer.
   - created render target with 2x size of backbuffer texture.
   
 Also added IDXGISwapChain::D3D11CreateDevice() passthrough function for Visual Studio GPU debugger.
