@@ -30,4 +30,8 @@ For digits drawing DirectXTK is used with generated fonts ([fonts generating tut
 
 # Using
 
-Put the d3d11.dll and the "hook_content" folder (contains shaders and fonts) in the 3D application folder that contains executable program, and run this program. 
+Put the d3d11.dll and the "hook_content" folder (contains shaders and fonts) in the 3D application folder that contains executable program, and run this program.
+
+# Example
+
+<p align="center"><img src="https://github.com/erikrause/triangle-injection/blob/main/examples/example.jpg" alt="example" width="50%"/></p>
