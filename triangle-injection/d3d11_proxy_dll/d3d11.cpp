@@ -386,7 +386,7 @@ void CreateSRVFromBackBuffer()
 void InitFonts()
 {
 	g_spriteBatch = new DirectX::SpriteBatch(devCon);
-	g_spriteFont = new DirectX::SpriteFont(device, L"C:\\myfont.font");
+	g_spriteFont = new DirectX::SpriteFont(device, L"hook_content\\myfont.font");
 }
 
 fn_D3D11CreateDeviceAndSwapChain LoadD3D11AndGetOriginalFuncPointer()
