@@ -10,9 +10,6 @@ struct VS_OUT
 // Shader for bilinear upsampling with factor 2.
 float4 main(VS_OUT input) : SV_TARGET
 {
-    //return input.col;
-    //return float4(input.tex.x, input.tex.y, 0.0f, 1.0f);
     float4 color = BackBuffer.Sample(Sampler, input.tex / 2);
-    color.z = 1.0f;
     return color;
 }
