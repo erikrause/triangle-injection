@@ -11,8 +11,6 @@
 #endif
 
 
-#define TexDimX 1024
-#define TexDimY 768
 #define Factor 2
 
 
@@ -20,22 +18,17 @@ Texture2D<float4> OriginTexture : register(t0);
 RWTexture2D<float4> UpsampledTexture : register(u0);
 SamplerState Sampler : register(s0);
 
-//float4 SampleTexture(uint2 coord)
-//{
-//    uint data = UpsampledTexture[coord];
-    
-//    float ch1, ch2, ch3, ch4;
-//    ch1 = data >> 24;
-//    ch2 = (data & 0x00ff0000) >> 16;
-//    ch3 = (data & 0x0000ff00) >> 8;
-//    ch4 = (data & 0x000000ff);
-    
-//    return float4(ch1, ch2, ch3, ch4);
-//}
+cbuffer res : register(b0)
+{
+    uint ResolutionX;
+    uint ResolutionY;
+}
+
 
 float4 SampleTexture(uint2 coords)
 {
-    float2 uv = float2(coords.x / 1024.f, coords.y / 768.f);
+    //float2 uv = float2(coords.x / float(1024), coords.y / float(768));
+    float2 uv = float2(coords.x / float(ResolutionX), coords.y / float(ResolutionY));
     return OriginTexture.SampleLevel(Sampler, uv, 0);
 }
 

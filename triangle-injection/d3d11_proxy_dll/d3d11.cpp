@@ -52,8 +52,6 @@ ID3D11DeviceContext4* devCon = nullptr;
 
 ID3D10Blob* g_bilinearInterpCSBlob = nullptr;
 ID3D11ComputeShader* g_bilinearInterpCS = nullptr;
-ID3D10Blob* g_quadrantCSBlob = nullptr;
-ID3D11ComputeShader* g_quadrantCS = nullptr;
 
 ID3D10Blob* g_vs_blob = nullptr;
 ID3D11VertexShader* g_vs = nullptr;
@@ -66,9 +64,6 @@ ID3D11RasterizerState* g_solidRasterState = nullptr;
 ID3D11DepthStencilState* g_solidDepthStencilState = nullptr;
 ID3D11SamplerState* g_samplerState = nullptr;
 
-ID3D10Blob* bilinearInterpolation_ps_blob = nullptr;
-ID3D11PixelShader* billinearInterpolation_ps = nullptr;
-
 ID3D11Texture2D* g_backBuffer;
 ID3D11ShaderResourceView* g_bbSRV = nullptr;	/* backbuffer's SRV. */
 ID3D11Texture2D* g_tempOutput = nullptr;
@@ -80,6 +75,10 @@ ID3D11Texture2D* g_upsampledTexture = nullptr;
 ID3D11RenderTargetView* g_upsampledTextureRTV = nullptr;
 ID3D11UnorderedAccessView* g_upsampledTextureUAV = nullptr;
 ID3D11ShaderResourceView* g_upsampledTextureSRV = nullptr;
+
+ID3D11Buffer* g_resolutionBuffer = nullptr;
+
+int g_resolutionX, g_resolutionY;	// size of backbuffer.
 
 DirectX::SpriteBatch* g_spriteBatch = nullptr;
 DirectX::SpriteFont* g_spriteFont = nullptr;
@@ -115,6 +114,11 @@ int GetFrameTime()
 	return lastFps;
 }
 
+int DivideAndRoundUp(int x, int y)
+{
+	return (x % y) ? x / y + 1 : x / y;
+}
+
 HRESULT DXGISwapChain_Present_Hook(IDXGISwapChain* thisPtr, UINT SyncInterval, UINT Flags)
 {
 	{
@@ -126,24 +130,16 @@ HRESULT DXGISwapChain_Present_Hook(IDXGISwapChain* thisPtr, UINT SyncInterval, U
 			devCon->CSSetShader(g_bilinearInterpCS, 0, 0);
 			devCon->CSSetUnorderedAccessViews(0, 1, &g_upsampledTextureUAV, NULL);
 			devCon->CSSetShaderResources(0, 1, &g_bbSRV);
-			//devCon->Dispatch(2047 / 8, 1535 / 8, 1);	// TODO: remove constants.
-			devCon->Dispatch(2047 / 8, 1535 / 8, 1);
+			devCon->CSSetConstantBuffers(0, 1, &g_resolutionBuffer);
+			devCon->Dispatch(DivideAndRoundUp(g_resolutionX * 2 - 1, 8), DivideAndRoundUp(g_resolutionY * 2 - 1, 8), 1);
 
 			// Unbinding UAV:
 			ID3D11UnorderedAccessView* views[] = { NULL };
 			devCon->CSSetUnorderedAccessViews(0, 1, views, NULL);
-
-			//devCon->OMSetRenderTargets(1, &g_dummyTextureRTV, NULL);
-			//devCon->CSSetShader(g_quadrantCS, 0, 0);	// TODO: delete shader.
-			//ID3D11UnorderedAccessView* uavs[] = { g_upsampledTextureUAV, g_tempOutputUAV };
-			//devCon->CSSetUnorderedAccessViews(0, 2, uavs, NULL);
-			//devCon->Dispatch(1024 / 8, 768 / 8, 1);	// TODO: remove constants.
-
-			//devCon->CopyResource(g_backBuffer, g_tempOutput);
 		}
 		devCon->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, rtvs_Orig, depthStencilView_Orig);
 
-		// returning to the pipeline:
+		// returning to the graphics pipeline:
 		devCon->VSSetShader(g_vs, 0, 0);
 		devCon->PSSetShader(g_topLeftQuadrant_ps, 0, 0);
 		devCon->PSSetShaderResources(0, 1, &g_upsampledTextureSRV);
@@ -218,30 +214,6 @@ void LoadShaders()
 		GetModuleFileNameA(hModule, filepath, 512);
 		PathRemoveFileSpecA(filepath);
 
-		strcat_s(filepath, 512, "\\hook_content\\quadrant_cs.shader");
-
-		wchar_t wPath[513];
-		size_t outSize;
-
-		mbstowcs_s(&outSize, &wPath[0], strlen(filepath) + 1, filepath, strlen(filepath));
-		ID3D10Blob* compileErrors;
-
-		HRESULT err = D3DCompileFromFile(wPath, 0, 0, "main", "cs_5_0", compileFlags, 0, &g_quadrantCSBlob, &compileErrors);	// TODO: add defines for numthreads.
-		if (compileErrors != nullptr && compileErrors)
-		{
-			ID3D10Blob* outErrorsDeref = compileErrors;
-			OutputDebugStringA((char*)compileErrors->GetBufferPointer());
-		}
-
-		err = device->CreateComputeShader(g_quadrantCSBlob->GetBufferPointer(), g_quadrantCSBlob->GetBufferSize(), NULL, &g_quadrantCS);
-		check(err == S_OK);
-	}
-	{
-		char filepath[512];
-		HMODULE hModule = GetModuleHandle(NULL);
-		GetModuleFileNameA(hModule, filepath, 512);
-		PathRemoveFileSpecA(filepath);
-
 		strcat_s(filepath, 512, "\\hook_content\\passthrough_vs.shader");
 
 		wchar_t wPath[513];
@@ -284,30 +256,6 @@ void LoadShaders()
 		err = device->CreatePixelShader(g_topLeftQuadrant_ps_blob->GetBufferPointer(), g_topLeftQuadrant_ps_blob->GetBufferSize(), NULL, &g_topLeftQuadrant_ps);
 		check(err == S_OK);
 	}
-	{
-		char filepath[512];
-		HMODULE hModule = GetModuleHandle(NULL);
-		GetModuleFileNameA(hModule, filepath, 512);
-		PathRemoveFileSpecA(filepath);
-
-		strcat_s(filepath, 512, "\\hook_content\\bilinearInterpolation_ps.shader");
-
-		wchar_t wPath[513];
-		size_t outSize;
-
-		mbstowcs_s(&outSize, &wPath[0], strlen(filepath) + 1, filepath, strlen(filepath));
-		ID3D10Blob* compileErrors;
-
-		HRESULT err = D3DCompileFromFile(wPath, 0, 0, "main", "ps_5_0", compileFlags, 0, &bilinearInterpolation_ps_blob, &compileErrors);
-		if (compileErrors != nullptr && compileErrors)
-		{
-			ID3D10Blob* outErrorsDeref = compileErrors;
-			OutputDebugStringA((char*)compileErrors->GetBufferPointer());
-		}
-
-		err = device->CreatePixelShader(bilinearInterpolation_ps_blob->GetBufferPointer(), bilinearInterpolation_ps_blob->GetBufferSize(), NULL, &billinearInterpolation_ps);
-		check(err == S_OK);
-	}
 }
 
 void CreateMesh()
@@ -317,9 +265,9 @@ void CreateMesh()
 	const VertexData vertData[] =
 	{
 		VertexData { XMFLOAT3(-1, -1, 0.1), XMFLOAT2(0, 1) },
-		VertexData { XMFLOAT3(1,  1, 0.1), XMFLOAT2(1, 0) },
+		VertexData { XMFLOAT3( 1,  1, 0.1), XMFLOAT2(1, 0) },
 		VertexData { XMFLOAT3(-1,  1, 0.1), XMFLOAT2(0, 0) },
-		VertexData { XMFLOAT3(1, -1, 0.1), XMFLOAT2(1, 1) }
+		VertexData { XMFLOAT3( 1, -1, 0.1), XMFLOAT2(1, 1) }
 	};
 
 
@@ -426,7 +374,6 @@ void CreateSRVFromBackBuffer()
 
 	D3D11_SAMPLER_DESC samplerDesc;
 	ZeroMemory(&samplerDesc, sizeof(D3D11_SAMPLER_DESC));
-	// TODO: change?
 	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
 	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
 	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
@@ -442,6 +389,7 @@ void CreateSRVFromBackBuffer()
 	samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
 
 	hr = device->CreateSamplerState(&samplerDesc, &g_samplerState);
+	check(hr == S_OK);
 }
 
 void CreateUpsampledTexture()
@@ -451,6 +399,8 @@ void CreateUpsampledTexture()
 
 	D3D11_TEXTURE2D_DESC bbTextureDesc;
 	backBuffer->GetDesc(&bbTextureDesc);
+	g_resolutionX = bbTextureDesc.Width;
+	g_resolutionY = bbTextureDesc.Height;
 
 	D3D11_TEXTURE2D_DESC upsampledTextureDesc = {};
 	upsampledTextureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_RENDER_TARGET;
@@ -467,6 +417,28 @@ void CreateUpsampledTexture()
 	hr = device->CreateRenderTargetView(g_upsampledTexture, NULL, &g_upsampledTextureRTV);
 	check(hr == S_OK);
 	hr = device->CreateShaderResourceView(g_upsampledTexture, NULL, &g_upsampledTextureSRV);
+	check(hr == S_OK);
+
+
+	// Constant buffer for resolution:
+	const uint32_t resValue[] =
+	{
+		g_resolutionX, g_resolutionY, 0, 0
+	};
+
+	D3D11_BUFFER_DESC resBufferDesc;
+	ZeroMemory(&resBufferDesc, sizeof(resBufferDesc));
+	resBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+	resBufferDesc.ByteWidth = sizeof(uint32_t) * 4;
+	resBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	resBufferDesc.CPUAccessFlags = 0;
+	resBufferDesc.MiscFlags = 0;
+
+	D3D11_SUBRESOURCE_DATA resBufferData;
+	ZeroMemory(&resBufferData, sizeof(resBufferData));
+	resBufferData.pSysMem = resValue;
+
+	hr = device->CreateBuffer(&resBufferDesc, &resBufferData, &g_resolutionBuffer);
 	check(hr == S_OK);
 }
 
