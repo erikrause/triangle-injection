@@ -171,7 +171,7 @@ void SimpleView::Tick(float deltaTime)
 	DirectX::XMFLOAT3 axis =  { 0.57735f, 0.57735f, 0.57735f };
 	DirectX::XMVECTOR axisVec = XMLoadFloat3(&axis);
 
-	DirectX::XMMATRIX newScale = DirectX::XMMatrixScaling(600.0,600.0,600.0);
+	DirectX::XMMATRIX newScale = DirectX::XMMatrixScaling(200.0,200.0,200.0);
 	DirectX::XMMATRIX newTranslation = DirectX::XMMatrixTranslation(0.0,0.0,300.0);
 
 	DirectX::XMMATRIX newRot = DirectX::XMMatrixRotationAxis(axisVec, t);
