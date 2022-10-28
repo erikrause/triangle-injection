@@ -37,20 +37,11 @@
     <None Include="res\d3d11_exports.def">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="hook_content\passthrough_vs.shader">
-      <Filter>hook_content</Filter>
-    </None>
-    <None Include="hook_content\vertex_color_ps.shader">
-      <Filter>hook_content</Filter>
-    </None>
     <None Include="packages.config" />
-    <None Include="hook_content\bilinearInterpolation_ps.shader">
-      <Filter>hook_content</Filter>
-    </None>
-    <None Include="hook_content\topLeftQuadrant_ps.shader">
-      <Filter>hook_content</Filter>
-    </None>
     <None Include="hook_content\bilinearInterpolation_cs.shader">
+      <Filter>hook_content</Filter>
+    </None>
+    <None Include="hook_content\quadrant_cs.shader">
       <Filter>hook_content</Filter>
     </None>
   </ItemGroup>

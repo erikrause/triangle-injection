@@ -52,12 +52,18 @@ ID3D11DeviceContext4* devCon = nullptr;
 
 ID3D10Blob* g_bilinearInterpCSBlob = nullptr;
 ID3D11ComputeShader* g_bilinearInterpCS = nullptr;
+ID3D10Blob* g_quadrantCSBlob = nullptr;
+ID3D11ComputeShader* g_quadrantCS = nullptr;
 
-ID3D11ShaderResourceView* g_bbSrv = nullptr;	// backbuffer's SRV.
-ID3D11Texture2D* g_dummyTexture = nullptr;
-ID3D11RenderTargetView* g_dummyTextureRtv = nullptr;
+ID3D11Texture2D* g_backBuffer;
+ID3D11ShaderResourceView* g_bbSRV = nullptr;	/* backbuffer's SRV. */
+ID3D11Texture2D* g_tempOutput = nullptr;
+ID3D11UnorderedAccessView* g_tempOutputUAV = nullptr;
+ID3D11Texture2D* g_dummyTexture = nullptr;	/* Dummy texture for Output-Merger (OM) while compute shader executing with backbuffer as resource. */
+ID3D11RenderTargetView* g_dummyTextureRTV = nullptr;
 
 ID3D11Texture2D* g_upsampledTexture = nullptr;
+ID3D11RenderTargetView* g_upsampledTextureRTV = nullptr;
 ID3D11UnorderedAccessView* g_upsampledTextureUAV = nullptr;
 
 DirectX::SpriteBatch* g_spriteBatch = nullptr;
@@ -100,12 +106,21 @@ HRESULT DXGISwapChain_Present_Hook(IDXGISwapChain* thisPtr, UINT SyncInterval, U
 		ID3D11RenderTargetView* rtvs_Orig[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT] = { nullptr };
 		ID3D11DepthStencilView* depthStencilView_Orig = nullptr;
 		devCon->OMGetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, rtvs_Orig, &depthStencilView_Orig);
-		devCon->OMSetRenderTargets(1, &g_dummyTextureRtv, NULL);
+		devCon->OMSetRenderTargets(1, &g_upsampledTextureRTV, NULL);
 		{
 			devCon->CSSetShader(g_bilinearInterpCS, 0, 0);
 			devCon->CSSetUnorderedAccessViews(0, 1, &g_upsampledTextureUAV, NULL);
-			devCon->CSSetShaderResources(0, 1, &g_bbSrv);
-			devCon->Dispatch(2048 / 8, 1536 / 8, 1);
+			devCon->CSSetShaderResources(0, 1, &g_bbSRV);
+			//devCon->Dispatch(2047 / 8, 1535 / 8, 1);	// TODO: remove constants.
+			devCon->Dispatch(2047 / 8, 1535 / 8, 1);
+
+			//devCon->OMSetRenderTargets(1, &g_dummyTextureRTV, NULL);
+			//devCon->CSSetShader(g_quadrantCS, 0, 0);
+			//ID3D11UnorderedAccessView* uavs[] = { g_upsampledTextureUAV, g_tempOutputUAV };
+			//devCon->CSSetUnorderedAccessViews(0, 2, uavs, NULL);
+			//devCon->Dispatch(1024 / 8, 768 / 8, 1);	// TODO: remove constants.
+
+			//devCon->CopyResource(g_backBuffer, g_tempOutput);
 		}
 		devCon->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, rtvs_Orig, depthStencilView_Orig);
 	}
@@ -162,22 +177,59 @@ void LoadShaders()
 		err = device->CreateComputeShader(g_bilinearInterpCSBlob->GetBufferPointer(), g_bilinearInterpCSBlob->GetBufferSize(), NULL, &g_bilinearInterpCS);
 		check(err == S_OK);
 	}
+	{
+		char filepath[512];
+		HMODULE hModule = GetModuleHandle(NULL);
+		GetModuleFileNameA(hModule, filepath, 512);
+		PathRemoveFileSpecA(filepath);
+
+		strcat_s(filepath, 512, "\\hook_content\\quadrant_cs.shader");
+
+		wchar_t wPath[513];
+		size_t outSize;
+
+		mbstowcs_s(&outSize, &wPath[0], strlen(filepath) + 1, filepath, strlen(filepath));
+		ID3D10Blob* compileErrors;
+
+		HRESULT err = D3DCompileFromFile(wPath, 0, 0, "main", "cs_5_0", compileFlags, 0, &g_quadrantCSBlob, &compileErrors);	// TODO: add defines for numthreads.
+		if (compileErrors != nullptr && compileErrors)
+		{
+			ID3D10Blob* outErrorsDeref = compileErrors;
+			OutputDebugStringA((char*)compileErrors->GetBufferPointer());
+		}
+
+		err = device->CreateComputeShader(g_quadrantCSBlob->GetBufferPointer(), g_quadrantCSBlob->GetBufferSize(), NULL, &g_quadrantCS);
+		check(err == S_OK);
+	}
 }
 
 void CreateSRVFromBackBuffer()
 {
-	ID3D11Texture2D* backBuffer = nullptr;
-	HRESULT hr = swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backBuffer);
-	hr = device->CreateShaderResourceView(backBuffer, NULL, &g_bbSrv);
+	HRESULT hr = swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&g_backBuffer);
+	hr = device->CreateShaderResourceView(g_backBuffer, NULL, &g_bbSRV);
 	check(hr == S_OK);
 
 	D3D11_TEXTURE2D_DESC bbTextureDesc;
-	backBuffer->GetDesc(&bbTextureDesc);
+	g_backBuffer->GetDesc(&bbTextureDesc);
 	bbTextureDesc.Width = 1;
 	bbTextureDesc.Height = 1;
 	hr = device->CreateTexture2D(&bbTextureDesc, NULL, &g_dummyTexture);
 	check(hr == S_OK);
-	hr = device->CreateRenderTargetView(g_dummyTexture, NULL, &g_dummyTextureRtv);
+	hr = device->CreateRenderTargetView(g_dummyTexture, NULL, &g_dummyTextureRTV);
+	check(hr == S_OK);
+
+
+	D3D11_TEXTURE2D_DESC tempOutputDesc = {};
+	tempOutputDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+	tempOutputDesc.Usage = D3D11_USAGE_DEFAULT;
+	tempOutputDesc.Width = bbTextureDesc.Width;
+	tempOutputDesc.Height = bbTextureDesc.Height;
+	tempOutputDesc.Format = bbTextureDesc.Format;
+	tempOutputDesc.ArraySize = tempOutputDesc.MipLevels = tempOutputDesc.SampleDesc.Count = 1;
+	tempOutputDesc.Format = bbTextureDesc.Format;
+	hr = device->CreateTexture2D(&tempOutputDesc, NULL, &g_tempOutput);
+	check(hr == S_OK);
+	hr = device->CreateUnorderedAccessView(g_tempOutput, NULL, &g_tempOutputUAV);
 	check(hr == S_OK);
 }
 
@@ -190,16 +242,18 @@ void CreateUpsampledTexture()
 	backBuffer->GetDesc(&bbTextureDesc);
 
 	D3D11_TEXTURE2D_DESC upsampledTextureDesc = {};
-	upsampledTextureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+	upsampledTextureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_RENDER_TARGET;
 	upsampledTextureDesc.Usage = D3D11_USAGE_DEFAULT;
-	upsampledTextureDesc.Width = bbTextureDesc.Width * 2;
-	upsampledTextureDesc.Height = bbTextureDesc.Height * 2;
-	upsampledTextureDesc.Format = bbTextureDesc.Format;	//DXGI_FORMAT_R8G8B8A8_UNORM;
+	upsampledTextureDesc.Width = bbTextureDesc.Width * 2 - 1;
+	upsampledTextureDesc.Height = bbTextureDesc.Height * 2 - 1;
+	upsampledTextureDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;	//bbTextureDesc.Format;	//DXGI_FORMAT_R8G8B8A8_UNORM;
 	upsampledTextureDesc.ArraySize = upsampledTextureDesc.MipLevels = upsampledTextureDesc.SampleDesc.Count = 1;
 
 	hr = device->CreateTexture2D(&upsampledTextureDesc, NULL, &g_upsampledTexture);
 	check(hr == S_OK);
 	hr = device->CreateUnorderedAccessView(g_upsampledTexture, NULL, &g_upsampledTextureUAV);
+	check(hr == S_OK);
+	hr = device->CreateRenderTargetView(g_upsampledTexture, NULL, &g_upsampledTextureRTV);
 	check(hr == S_OK);
 }
 
@@ -270,7 +324,7 @@ extern "C" HRESULT __stdcall D3D11CreateDeviceAndSwapChain(
 	fn_D3D11CreateDeviceAndSwapChain D3D11CreateDeviceAndSwapChain_Orig = LoadD3D11AndGetOriginalFuncPointer();
 
 	DXGI_SWAP_CHAIN_DESC newSwapChainDesc = *pSwapChainDesc;
-	newSwapChainDesc.BufferUsage |= DXGI_USAGE_SHADER_INPUT;
+	newSwapChainDesc.BufferUsage |= DXGI_USAGE_SHADER_INPUT;	// | DXGI_USAGE_UNORDERED_ACCESS;
 	HRESULT res = D3D11CreateDeviceAndSwapChain_Orig(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, &newSwapChainDesc, ppSwapChain, ppDevice, pFeatureLevel, ppImmediateContext);
 
 	HRESULT hr = (*ppDevice)->QueryInterface(__uuidof(ID3D11Device5), (void**)&device);

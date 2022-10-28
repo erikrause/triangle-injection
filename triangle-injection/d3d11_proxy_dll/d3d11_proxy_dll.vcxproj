@@ -188,10 +188,7 @@ rmdir /s /q $(OutDir)</Command>
   </ItemGroup>
   <ItemGroup>
     <None Include="hook_content\bilinearInterpolation_cs.shader" />
-    <None Include="hook_content\bilinearInterpolation_ps.shader" />
-    <None Include="hook_content\passthrough_vs.shader" />
-    <None Include="hook_content\topLeftQuadrant_ps.shader" />
-    <None Include="hook_content\vertex_color_ps.shader" />
+    <None Include="hook_content\quadrant_cs.shader" />
     <None Include="packages.config" />
     <None Include="res\d3d11_exports.def" />
   </ItemGroup>
