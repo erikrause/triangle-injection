@@ -17,16 +17,11 @@ The DLL requires that the target app uses D3D11CreateDeviceAndSwapChain to creat
 
 # Changes
 
-Implemented pixel shaders for [upsampling](https://github.com/erikrause/triangle-injection/blob/main/triangle-injection/d3d11_proxy_dll/hook_content/bilinearInterpolation_ps.shader) and [zooming](https://github.com/erikrause/triangle-injection/blob/main/triangle-injection/d3d11_proxy_dll/hook_content/topLeftQuadrant_ps.shader). There are used sampler for linear interpolation.
-
-In order for pixel shaders to sample swapchain's backbuffer, it was:
-  - placed fullscreen quad to texturing the viewport.
-  - added shader resorce view for backbuffer.
-  - created render target with 2x size of backbuffer texture.
+Implemented [compute shader](https://github.com/erikrause/triangle-injection/blob/main/triangle-injection/d3d11_proxy_dll/hook_content/bilinearInterpolation_cs.shader) for upsampling with factor 2 and [pixel shader](https://github.com/erikrause/triangle-injection/blob/main/triangle-injection/d3d11_proxy_dll/hook_content/topLeftQuadrant_ps.shader) for zooming to top left quandrant of upsampled image. There are used sampler for linear interpolation.
   
-Also added IDXGISwapChain::D3D11CreateDevice() passthrough function for Visual Studio GPU debugger and debug compile flang to shaders.
+Also added IDXGISwapChain::D3D11CreateDevice() passthrough function for Visual Studio GPU debugger and debug compile flags to shaders.
 
-For digits drawing DirectXTK is used with generated fonts ([fonts generating tutorial](https://github.com/microsoft/DirectXTK/wiki/Drawing-text)).
+For digits drawing the DirectXTK is used with generated fonts ([fonts generating tutorial](https://github.com/microsoft/DirectXTK/wiki/Drawing-text)).
 
 # Using
 
