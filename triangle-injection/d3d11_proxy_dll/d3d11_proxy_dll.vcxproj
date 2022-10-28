@@ -187,6 +187,7 @@ rmdir /s /q $(OutDir)</Command>
     <ClInclude Include="hooking.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="hook_content\bilinearInterpolation_cs.shader" />
     <None Include="hook_content\bilinearInterpolation_ps.shader" />
     <None Include="hook_content\passthrough_vs.shader" />
     <None Include="hook_content\topLeftQuadrant_ps.shader" />
