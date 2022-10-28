@@ -18,6 +18,7 @@
 
 Texture2D<float4> OriginTexture : register(t0);
 RWTexture2D<float4> UpsampledTexture : register(u0);
+SamplerState Sampler : register(s0);
 
 //float4 SampleTexture(uint2 coord)
 //{
@@ -32,11 +33,17 @@ RWTexture2D<float4> UpsampledTexture : register(u0);
 //    return float4(ch1, ch2, ch3, ch4);
 //}
 
+float4 SampleTexture(uint2 coords)
+{
+    float2 uv = float2(coords.x / 1024.f, coords.y / 768.f);
+    return OriginTexture.SampleLevel(Sampler, uv, 0);
+}
+
 // discreteXFloor & discreteXCeil is just precalculated floor & ceil values respectively (for perfomance).
 float4 R(float x, uint discreteY, uint discreteXFloor, uint discreteXCeil) //, float xFloorDif, float xCeilDif)
 {
-    return (discreteXCeil - x) * OriginTexture[uint2(discreteXFloor, discreteY)] + // SampleTexture(uint2(discreteXFloor, discreteY)) +
-           (x - discreteXFloor) * OriginTexture[uint2(discreteXCeil, discreteY)]; // SampleTexture(uint2(discreteXCeil, discreteY)); 
+    return (discreteXCeil - x) * SampleTexture(uint2(discreteXFloor, discreteY)) +
+           (x - discreteXFloor) * SampleTexture(uint2(discreteXCeil, discreteY)); 
 
 }
 
@@ -59,6 +66,9 @@ void main(uint3 DTid : SV_DispatchThreadID)
     // Final interpolation between r1 and r2:
     float4 result = (ceilCoord.y - interpolatedCoord.y) * r1 +
                     (interpolatedCoord.y - floorCoord.y) * r2;
+    
+    //float2 texCoord = float2(upsampledCoord.x / 2048.f, upsampledCoord.y / 1536.f);
+    //result = OriginTexture.SampleLevel(Sampler, texCoord, 0);
 
     UpsampledTexture[upsampledCoord] = result;
 }

@@ -114,13 +114,13 @@ HRESULT DXGISwapChain_Present_Hook(IDXGISwapChain* thisPtr, UINT SyncInterval, U
 			//devCon->Dispatch(2047 / 8, 1535 / 8, 1);	// TODO: remove constants.
 			devCon->Dispatch(2047 / 8, 1535 / 8, 1);
 
-			//devCon->OMSetRenderTargets(1, &g_dummyTextureRTV, NULL);
-			//devCon->CSSetShader(g_quadrantCS, 0, 0);
-			//ID3D11UnorderedAccessView* uavs[] = { g_upsampledTextureUAV, g_tempOutputUAV };
-			//devCon->CSSetUnorderedAccessViews(0, 2, uavs, NULL);
-			//devCon->Dispatch(1024 / 8, 768 / 8, 1);	// TODO: remove constants.
+			devCon->OMSetRenderTargets(1, &g_dummyTextureRTV, NULL);
+			devCon->CSSetShader(g_quadrantCS, 0, 0);
+			ID3D11UnorderedAccessView* uavs[] = { g_upsampledTextureUAV, g_tempOutputUAV };
+			devCon->CSSetUnorderedAccessViews(0, 2, uavs, NULL);
+			devCon->Dispatch(1024 / 8, 768 / 8, 1);	// TODO: remove constants.
 
-			//devCon->CopyResource(g_backBuffer, g_tempOutput);
+			devCon->CopyResource(g_backBuffer, g_tempOutput);
 		}
 		devCon->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, rtvs_Orig, depthStencilView_Orig);
 	}
@@ -211,9 +211,11 @@ void CreateSRVFromBackBuffer()
 
 	D3D11_TEXTURE2D_DESC bbTextureDesc;
 	g_backBuffer->GetDesc(&bbTextureDesc);
-	bbTextureDesc.Width = 1;
-	bbTextureDesc.Height = 1;
-	hr = device->CreateTexture2D(&bbTextureDesc, NULL, &g_dummyTexture);
+
+	D3D11_TEXTURE2D_DESC dummyTextureDesc = bbTextureDesc;
+	dummyTextureDesc.Width = 1;
+	dummyTextureDesc.Height = 1;
+	hr = device->CreateTexture2D(&dummyTextureDesc, NULL, &g_dummyTexture);
 	check(hr == S_OK);
 	hr = device->CreateRenderTargetView(g_dummyTexture, NULL, &g_dummyTextureRTV);
 	check(hr == S_OK);
@@ -246,7 +248,7 @@ void CreateUpsampledTexture()
 	upsampledTextureDesc.Usage = D3D11_USAGE_DEFAULT;
 	upsampledTextureDesc.Width = bbTextureDesc.Width * 2 - 1;
 	upsampledTextureDesc.Height = bbTextureDesc.Height * 2 - 1;
-	upsampledTextureDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;	//bbTextureDesc.Format;	//DXGI_FORMAT_R8G8B8A8_UNORM;
+	upsampledTextureDesc.Format = bbTextureDesc.Format;	//bbTextureDesc.Format;	//DXGI_FORMAT_R8G8B8A8_UNORM;
 	upsampledTextureDesc.ArraySize = upsampledTextureDesc.MipLevels = upsampledTextureDesc.SampleDesc.Count = 1;
 
 	hr = device->CreateTexture2D(&upsampledTextureDesc, NULL, &g_upsampledTexture);
