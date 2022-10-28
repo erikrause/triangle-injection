@@ -13,7 +13,7 @@ struct VS_OUT
 VS_OUT main(VS_IN input)
 {
     VS_OUT OUT;
-    OUT.pos = float4(input.pos,1.0);
+    OUT.pos = float4(input.pos, 1.0);
     OUT.tex = input.tex;
     return OUT;
 }

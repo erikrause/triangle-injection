@@ -187,12 +187,18 @@ rmdir /s /q $(OutDir)</Command>
     <ClInclude Include="hooking.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="hook_content\bilinearInterpolation_ps.shader" />
-    <None Include="hook_content\passthrough_vs.shader" />
+    <None Include="hook_content\bilinearInterpolation_cs.shader" />
     <None Include="hook_content\topLeftQuadrant_ps.shader" />
-    <None Include="hook_content\vertex_color_ps.shader" />
     <None Include="packages.config" />
     <None Include="res\d3d11_exports.def" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="hook_content\passthrough_vs.shader">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+    </FxCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -10,6 +10,7 @@ struct VS_OUT
 // Shader that takes top-left quadrant of texture.
 float4 main(VS_OUT input) : SV_TARGET
 {
-    return Texture.Sample(Sampler, input.tex / 2);
+    float4 test = Texture.Sample(Sampler, input.tex / 2);
+    return test;
 
 }
