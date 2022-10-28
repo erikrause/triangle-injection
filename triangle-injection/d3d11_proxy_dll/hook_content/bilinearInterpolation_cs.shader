@@ -59,9 +59,6 @@ void main(uint3 DTid : SV_DispatchThreadID)
     // Final interpolation between r1 and r2:
     float4 result = (ceilCoord.y - interpolatedCoord.y) * r1 +
                     (interpolatedCoord.y - floorCoord.y) * r2;
-    
-    //float2 texCoord = float2(upsampledCoord.x / 2048.f, upsampledCoord.y / 1536.f);
-    //result = OriginTexture.SampleLevel(Sampler, texCoord, 0);
 
     UpsampledTexture[upsampledCoord] = result;
 }
