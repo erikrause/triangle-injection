@@ -55,6 +55,20 @@ ID3D11ComputeShader* g_bilinearInterpCS = nullptr;
 ID3D10Blob* g_quadrantCSBlob = nullptr;
 ID3D11ComputeShader* g_quadrantCS = nullptr;
 
+ID3D10Blob* g_vs_blob = nullptr;
+ID3D11VertexShader* g_vs = nullptr;
+ID3D10Blob* g_topLeftQuadrant_ps_blob = nullptr;
+ID3D11PixelShader* g_topLeftQuadrant_ps = nullptr;
+ID3D11Buffer* g_vertex_buffer = nullptr;
+ID3D11Buffer* g_index_buffer = nullptr;
+ID3D11InputLayout* g_vertLayout = nullptr;
+ID3D11RasterizerState* g_solidRasterState = nullptr;
+ID3D11DepthStencilState* g_solidDepthStencilState = nullptr;
+ID3D11SamplerState* g_samplerState = nullptr;
+
+ID3D10Blob* bilinearInterpolation_ps_blob = nullptr;
+ID3D11PixelShader* billinearInterpolation_ps = nullptr;
+
 ID3D11Texture2D* g_backBuffer;
 ID3D11ShaderResourceView* g_bbSRV = nullptr;	/* backbuffer's SRV. */
 ID3D11Texture2D* g_tempOutput = nullptr;
@@ -65,6 +79,7 @@ ID3D11RenderTargetView* g_dummyTextureRTV = nullptr;
 ID3D11Texture2D* g_upsampledTexture = nullptr;
 ID3D11RenderTargetView* g_upsampledTextureRTV = nullptr;
 ID3D11UnorderedAccessView* g_upsampledTextureUAV = nullptr;
+ID3D11ShaderResourceView* g_upsampledTextureSRV = nullptr;
 
 DirectX::SpriteBatch* g_spriteBatch = nullptr;
 DirectX::SpriteFont* g_spriteFont = nullptr;
@@ -114,15 +129,35 @@ HRESULT DXGISwapChain_Present_Hook(IDXGISwapChain* thisPtr, UINT SyncInterval, U
 			//devCon->Dispatch(2047 / 8, 1535 / 8, 1);	// TODO: remove constants.
 			devCon->Dispatch(2047 / 8, 1535 / 8, 1);
 
-			devCon->OMSetRenderTargets(1, &g_dummyTextureRTV, NULL);
-			devCon->CSSetShader(g_quadrantCS, 0, 0);
-			ID3D11UnorderedAccessView* uavs[] = { g_upsampledTextureUAV, g_tempOutputUAV };
-			devCon->CSSetUnorderedAccessViews(0, 2, uavs, NULL);
-			devCon->Dispatch(1024 / 8, 768 / 8, 1);	// TODO: remove constants.
+			// Unbinding UAV:
+			ID3D11UnorderedAccessView* views[] = { NULL };
+			devCon->CSSetUnorderedAccessViews(0, 1, views, NULL);
 
-			devCon->CopyResource(g_backBuffer, g_tempOutput);
+			//devCon->OMSetRenderTargets(1, &g_dummyTextureRTV, NULL);
+			//devCon->CSSetShader(g_quadrantCS, 0, 0);	// TODO: delete shader.
+			//ID3D11UnorderedAccessView* uavs[] = { g_upsampledTextureUAV, g_tempOutputUAV };
+			//devCon->CSSetUnorderedAccessViews(0, 2, uavs, NULL);
+			//devCon->Dispatch(1024 / 8, 768 / 8, 1);	// TODO: remove constants.
+
+			//devCon->CopyResource(g_backBuffer, g_tempOutput);
 		}
 		devCon->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, rtvs_Orig, depthStencilView_Orig);
+
+		// returning to the pipeline:
+		devCon->VSSetShader(g_vs, 0, 0);
+		devCon->PSSetShader(g_topLeftQuadrant_ps, 0, 0);
+		devCon->PSSetShaderResources(0, 1, &g_upsampledTextureSRV);
+		devCon->PSSetSamplers(0, 1, &g_samplerState);
+		devCon->IASetInputLayout(g_vertLayout);
+		devCon->RSSetState(g_solidRasterState);
+		devCon->OMSetDepthStencilState(g_solidDepthStencilState, 0);
+
+		UINT stride = sizeof(VertexData);
+		UINT offset = 0;
+		devCon->IASetVertexBuffers(0, 1, &g_vertex_buffer, &stride, &offset);
+		devCon->IASetIndexBuffer(g_index_buffer, DXGI_FORMAT_R32_UINT, 0);
+		devCon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		devCon->DrawIndexed(6, 0, 0);
 	}
 
 	// Displaying FPS:
@@ -201,6 +236,160 @@ void LoadShaders()
 		err = device->CreateComputeShader(g_quadrantCSBlob->GetBufferPointer(), g_quadrantCSBlob->GetBufferSize(), NULL, &g_quadrantCS);
 		check(err == S_OK);
 	}
+	{
+		char filepath[512];
+		HMODULE hModule = GetModuleHandle(NULL);
+		GetModuleFileNameA(hModule, filepath, 512);
+		PathRemoveFileSpecA(filepath);
+
+		strcat_s(filepath, 512, "\\hook_content\\passthrough_vs.shader");
+
+		wchar_t wPath[513];
+		size_t outSize;
+
+		mbstowcs_s(&outSize, &wPath[0], strlen(filepath) + 1, filepath, strlen(filepath));
+		ID3D10Blob* compileErrors;
+
+		HRESULT err = D3DCompileFromFile(wPath, 0, 0, "main", "vs_5_0", compileFlags, 0, &g_vs_blob, &compileErrors);
+		if (compileErrors != nullptr && compileErrors)
+		{
+			ID3D10Blob* outErrorsDeref = compileErrors;
+			OutputDebugStringA((char*)compileErrors->GetBufferPointer());
+		}
+
+		err = device->CreateVertexShader(g_vs_blob->GetBufferPointer(), g_vs_blob->GetBufferSize(), NULL, &g_vs);
+		check(err == S_OK);
+	}
+	{
+		char filepath[512];
+		HMODULE hModule = GetModuleHandle(NULL);
+		GetModuleFileNameA(hModule, filepath, 512);
+		PathRemoveFileSpecA(filepath);
+
+		strcat_s(filepath, 512, "\\hook_content\\topLeftQuadrant_ps.shader");
+
+		wchar_t wPath[513];
+		size_t outSize;
+
+		mbstowcs_s(&outSize, &wPath[0], strlen(filepath) + 1, filepath, strlen(filepath));
+		ID3D10Blob* compileErrors;
+
+		HRESULT err = D3DCompileFromFile(wPath, 0, 0, "main", "ps_5_0", compileFlags, 0, &g_topLeftQuadrant_ps_blob, &compileErrors);
+		if (compileErrors != nullptr && compileErrors)
+		{
+			ID3D10Blob* outErrorsDeref = compileErrors;
+			OutputDebugStringA((char*)compileErrors->GetBufferPointer());
+		}
+
+		err = device->CreatePixelShader(g_topLeftQuadrant_ps_blob->GetBufferPointer(), g_topLeftQuadrant_ps_blob->GetBufferSize(), NULL, &g_topLeftQuadrant_ps);
+		check(err == S_OK);
+	}
+	{
+		char filepath[512];
+		HMODULE hModule = GetModuleHandle(NULL);
+		GetModuleFileNameA(hModule, filepath, 512);
+		PathRemoveFileSpecA(filepath);
+
+		strcat_s(filepath, 512, "\\hook_content\\bilinearInterpolation_ps.shader");
+
+		wchar_t wPath[513];
+		size_t outSize;
+
+		mbstowcs_s(&outSize, &wPath[0], strlen(filepath) + 1, filepath, strlen(filepath));
+		ID3D10Blob* compileErrors;
+
+		HRESULT err = D3DCompileFromFile(wPath, 0, 0, "main", "ps_5_0", compileFlags, 0, &bilinearInterpolation_ps_blob, &compileErrors);
+		if (compileErrors != nullptr && compileErrors)
+		{
+			ID3D10Blob* outErrorsDeref = compileErrors;
+			OutputDebugStringA((char*)compileErrors->GetBufferPointer());
+		}
+
+		err = device->CreatePixelShader(bilinearInterpolation_ps_blob->GetBufferPointer(), bilinearInterpolation_ps_blob->GetBufferSize(), NULL, &billinearInterpolation_ps);
+		check(err == S_OK);
+	}
+}
+
+void CreateMesh()
+{
+	using namespace DirectX;
+
+	const VertexData vertData[] =
+	{
+		VertexData { XMFLOAT3(-1, -1, 0.1), XMFLOAT2(0, 1) },
+		VertexData { XMFLOAT3(1,  1, 0.1), XMFLOAT2(1, 0) },
+		VertexData { XMFLOAT3(-1,  1, 0.1), XMFLOAT2(0, 0) },
+		VertexData { XMFLOAT3(1, -1, 0.1), XMFLOAT2(1, 1) }
+	};
+
+
+	D3D11_BUFFER_DESC vertBufferDesc;
+	ZeroMemory(&vertBufferDesc, sizeof(vertBufferDesc));
+	vertBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+	vertBufferDesc.ByteWidth = sizeof(VertexData) * 4;
+	vertBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	vertBufferDesc.CPUAccessFlags = 0;
+	vertBufferDesc.MiscFlags = 0;
+
+	D3D11_SUBRESOURCE_DATA vertBufferData;
+	ZeroMemory(&vertBufferData, sizeof(vertBufferData));
+	vertBufferData.pSysMem = vertData;
+
+	HRESULT res = device->CreateBuffer(&vertBufferDesc, &vertBufferData, &g_vertex_buffer);
+	check(res == S_OK);
+
+	// Indices:
+	const uint32_t indices[] =
+	{
+		0, 1, 2,
+		0, 1, 3
+	};
+
+	D3D11_BUFFER_DESC indexBufferDesc;
+	ZeroMemory(&indexBufferDesc, sizeof(indexBufferDesc));
+	indexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+	indexBufferDesc.ByteWidth = sizeof(uint32_t) * 6;
+	indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	indexBufferDesc.CPUAccessFlags = 0;
+	indexBufferDesc.MiscFlags = 0;
+
+	D3D11_SUBRESOURCE_DATA indexBufferData;
+	ZeroMemory(&indexBufferData, sizeof(indexBufferData));
+	indexBufferData.pSysMem = indices;
+
+	res = device->CreateBuffer(&indexBufferDesc, &indexBufferData, &g_index_buffer);
+	check(res == S_OK);
+}
+
+
+void CreateInputLayout()
+{
+	D3D11_INPUT_ELEMENT_DESC vertElements[] =
+	{
+		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}
+	};
+
+	HRESULT err = device->CreateInputLayout(vertElements, _countof(vertElements), g_vs_blob->GetBufferPointer(), g_vs_blob->GetBufferSize(), &g_vertLayout);
+	check(err == S_OK);
+}
+
+void CreateRasterizerAndDepthStates()
+{
+	D3D11_RASTERIZER_DESC soliddesc;
+	ZeroMemory(&soliddesc, sizeof(D3D11_RASTERIZER_DESC));
+	soliddesc.FillMode = D3D11_FILL_SOLID;
+	soliddesc.CullMode = D3D11_CULL_NONE;
+	HRESULT err = device->CreateRasterizerState(&soliddesc, &g_solidRasterState);
+	check(err == S_OK);
+
+	D3D11_DEPTH_STENCIL_DESC depthDesc;
+	ZeroMemory(&depthDesc, sizeof(D3D11_DEPTH_STENCIL_DESC));
+	depthDesc.DepthEnable = true;
+	depthDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+	depthDesc.DepthFunc = D3D11_COMPARISON_ALWAYS;
+	err = device->CreateDepthStencilState(&depthDesc, &g_solidDepthStencilState);
+	check(err == S_OK);
 }
 
 void CreateSRVFromBackBuffer()
@@ -233,6 +422,26 @@ void CreateSRVFromBackBuffer()
 	check(hr == S_OK);
 	hr = device->CreateUnorderedAccessView(g_tempOutput, NULL, &g_tempOutputUAV);
 	check(hr == S_OK);
+
+
+	D3D11_SAMPLER_DESC samplerDesc;
+	ZeroMemory(&samplerDesc, sizeof(D3D11_SAMPLER_DESC));
+	// TODO: change?
+	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+	samplerDesc.MipLODBias = 0.0f;
+	samplerDesc.MaxAnisotropy = 1;
+	samplerDesc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
+	samplerDesc.BorderColor[0] = 1;
+	samplerDesc.BorderColor[1] = 0;
+	samplerDesc.BorderColor[2] = 0;
+	samplerDesc.BorderColor[3] = 0;
+	samplerDesc.MinLOD = 0;
+	samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
+
+	hr = device->CreateSamplerState(&samplerDesc, &g_samplerState);
 }
 
 void CreateUpsampledTexture()
@@ -256,6 +465,8 @@ void CreateUpsampledTexture()
 	hr = device->CreateUnorderedAccessView(g_upsampledTexture, NULL, &g_upsampledTextureUAV);
 	check(hr == S_OK);
 	hr = device->CreateRenderTargetView(g_upsampledTexture, NULL, &g_upsampledTextureRTV);
+	check(hr == S_OK);
+	hr = device->CreateShaderResourceView(g_upsampledTexture, NULL, &g_upsampledTextureSRV);
 	check(hr == S_OK);
 }
 
@@ -333,6 +544,9 @@ extern "C" HRESULT __stdcall D3D11CreateDeviceAndSwapChain(
 	hr = (*ppImmediateContext)->QueryInterface(__uuidof(ID3D11DeviceContext), (void**)&devCon);
 
 	LoadShaders();
+	CreateMesh();
+	CreateInputLayout();
+	CreateRasterizerAndDepthStates();
 
 	swapChain = *ppSwapChain;
 	void** swapChainVTable = get_vtable_ptr(swapChain);

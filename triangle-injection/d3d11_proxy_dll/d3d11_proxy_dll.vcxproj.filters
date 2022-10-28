@@ -44,5 +44,16 @@
     <None Include="hook_content\quadrant_cs.shader">
       <Filter>hook_content</Filter>
     </None>
+    <None Include="hook_content\topLeftQuadrant_ps.shader">
+      <Filter>hook_content</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="hook_content\passthrough_vs.shader">
+      <Filter>hook_content</Filter>
+    </FxCompile>
+    <FxCompile Include="hook_content\bilinearInterpolation_ps.shader">
+      <Filter>hook_content</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>
